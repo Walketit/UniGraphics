@@ -64,6 +64,10 @@ class GraphicsApp:
         self.anim_direction = 1.0                 # текущее направление движения
         self.anim_limit = 5.0                     # граница амплитуды перемещения
 
+        # Отображение координатной сетки на плоскости XZ
+        self.show_grid = True
+        self.grid_var = tk.BooleanVar(value=True)
+
         # Создаем пользовательский интерфейс
         self._build_ui()
 
@@ -212,6 +216,16 @@ class GraphicsApp:
             )
             rb.pack(anchor=tk.W, pady=2)
 
+        # Отображения координатной сетки XZ
+        ttk.Separator(proj_group, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(6, 4))
+        self.cb_grid = ttk.Checkbutton(
+            proj_group,
+            text="Сетка плоскости XZ",
+            variable=self.grid_var,
+            command=self._on_grid_toggle
+        )
+        self.cb_grid.pack(anchor=tk.W, pady=2)
+
         # Блок информации о модели
         info_group = ttk.LabelFrame(self.scrollable_frame, text=" Информация о модели ", padding=8)
         info_group.pack(fill=tk.X, pady=(0, 8), padx=2)
@@ -238,6 +252,7 @@ class GraphicsApp:
 
         instructions = [
             ("Пробел", "Старт / Пауза анимации"),
+            ("G", "Сетка XZ (Вкл / Выкл)"),
             ("←  →", "Перемещение по оси X (±1.0)"),
             ("↑  ↓", "Перемещение по оси Y (±1.0)"),
             ("Q / E", "Перемещение по оси Z (±1.0)"),
@@ -351,9 +366,24 @@ class GraphicsApp:
         elif char in ("b", "и"):
             self.reflect_model_around_center("z", "Отражение по Z")
 
+        # Переключение координатной сетки
+        elif char in ("g", "п"):
+            self.show_grid = not self.show_grid
+            self.grid_var.set(self.show_grid)
+            self.last_action_text = f"Сетка XZ: {'Вкл' if self.show_grid else 'Выкл'}"
+            self.redraw()
+
         # Сброс к исходному состоянию
         elif char in ("r", "к") or keysym in ("Home", "Escape"):
             self.reset_model()
+
+    def _on_grid_toggle(self):
+        """
+        Переключает видимость координатной сетки XZ по клику на флажок в UI
+        """
+        self.show_grid = self.grid_var.get()
+        self.last_action_text = f"Сетка XZ: {'Вкл' if self.show_grid else 'Выкл'}"
+        self.redraw()
 
     def toggle_animation(self):
         """
@@ -534,6 +564,10 @@ class GraphicsApp:
 
         proj_matrix = self._get_current_projection_matrix()
 
+        # Рисуем координатную сетку на плоскости XZ (Y = 0)
+        if self.show_grid:
+            self._draw_grid(proj_matrix)
+
         # Рисуем координатные оси
         self._draw_axes(proj_matrix)
 
@@ -547,6 +581,59 @@ class GraphicsApp:
         cx, cy, cz = self.letter.get_center()
         self.lbl_center.config(text=f"Центр C: ({cx:.2f}, {cy:.2f}, {cz:.2f})")
         self.lbl_action.config(text=f"Действие: {self.last_action_text}")
+
+    def _draw_grid(self, proj_matrix, grid_range=8, step=1):
+        """
+        Отрисовывает координатную сетку на плоскости XZ:
+        """
+        color_grid = "#262939"
+        color_sub_axis = "#3b425b"
+
+        # Линии, параллельные оси Z (при постоянном x)
+        for x in range(-grid_range, grid_range + 1, step):
+            col = color_sub_axis if x == 0 else color_grid
+            p1 = project_point_to_screen(
+                (float(x), 0.0, float(-grid_range)),
+                proj_matrix,
+                self.canvas_width,
+                self.canvas_height,
+                scale=self.scale,
+                pan_x=self.pan_x,
+                pan_y=self.pan_y
+            )
+            p2 = project_point_to_screen(
+                (float(x), 0.0, float(grid_range)),
+                proj_matrix,
+                self.canvas_width,
+                self.canvas_height,
+                scale=self.scale,
+                pan_x=self.pan_x,
+                pan_y=self.pan_y
+            )
+            self.canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=col, width=1)
+
+        # Линии, параллельные оси X (при постоянном z)
+        for z in range(-grid_range, grid_range + 1, step):
+            col = color_sub_axis if z == 0 else color_grid
+            p1 = project_point_to_screen(
+                (float(-grid_range), 0.0, float(z)),
+                proj_matrix,
+                self.canvas_width,
+                self.canvas_height,
+                scale=self.scale,
+                pan_x=self.pan_x,
+                pan_y=self.pan_y
+            )
+            p2 = project_point_to_screen(
+                (float(grid_range), 0.0, float(z)),
+                proj_matrix,
+                self.canvas_width,
+                self.canvas_height,
+                scale=self.scale,
+                pan_x=self.pan_x,
+                pan_y=self.pan_y
+            )
+            self.canvas.create_line(p1[0], p1[1], p2[0], p2[1], fill=col, width=1)
 
     def _draw_axes(self, proj_matrix):
         """
