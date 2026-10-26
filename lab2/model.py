@@ -1,5 +1,5 @@
 """
-Модуль трехмерной полигональной модели выпуклого многогранника (6 граней от 3 до 5 сторон)
+Модуль трехмерной полигональной модели выпуклого многогранника
 """
 
 from transformations import transform_points
@@ -21,19 +21,16 @@ class WireframeModel:
 
     def get_center(self):
         """
-        Вычисляет геометрический центр модели:
-        C = ((xmin + xmax) / 2, (ymin + ymax) / 2, (zmin + zmax) / 2)
+        Вычисляет геометрический центр модели как среднее арифметическое вершин:
+        C = (sum(x) / N, sum(y) / N, sum(z) / N)
         """
         if not self.vertices:
             return (0.0, 0.0, 0.0)
 
-        xs = [v[0] for v in self.vertices]
-        ys = [v[1] for v in self.vertices]
-        zs = [v[2] for v in self.vertices]
-
-        cx = (min(xs) + max(xs)) / 2.0
-        cy = (min(ys) + max(ys)) / 2.0
-        cz = (min(zs) + max(zs)) / 2.0
+        n = len(self.vertices)
+        cx = sum(v[0] for v in self.vertices) / n
+        cy = sum(v[1] for v in self.vertices) / n
+        cz = sum(v[2] for v in self.vertices) / n
 
         return (cx, cy, cz)
 
@@ -52,8 +49,7 @@ class WireframeModel:
 
 def create_convex_polyhedron():
     """
-    Генерирует выпуклый многогранник из 6 многоугольников (от 3 до 5 сторон) —
-    усечённую треугольную призму:
+    Генерирует выпуклый многогранник из 6 многоугольников — усечённую треугольную призму:
       - 2 треугольные грани (3 стороны)
       - 2 четырёхугольные грани (4 стороны)
       - 2 пятиугольные грани (5 сторон)
