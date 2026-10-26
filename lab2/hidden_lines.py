@@ -33,6 +33,10 @@ def compute_outward_normal(face_points, body_center):
     if (nx * wx + ny * wy + nz * wz) < 0.0:
         nx, ny, nz = -nx, -ny, -nz
 
+    length = math.sqrt(nx * nx + ny * ny + nz * nz)
+    if length > 1e-9:
+        return (nx / length, ny / length, nz / length)
+
     return (nx, ny, nz)
 
 
@@ -75,8 +79,9 @@ def classify_model_visibility(model, proj_type="isometric", c=30.0):
     body_center = model.get_center()
     visible_faces = []
     visible_edge_set = set()
+    faces_data = []
 
-    for face in model.faces:
+    for face_idx, face in enumerate(model.faces):
         face_points = [model.vertices[idx] for idx in face]
 
         # Внешняя нормаль к грани
@@ -95,11 +100,29 @@ def classify_model_visibility(model, proj_type="isometric", c=30.0):
 
         # Скалярное произведение (N * S): если > 0, грань лицевая
         dot_product = nx * sx + ny * sy + nz * sz
-        if dot_product > 1e-9:
+        is_visible = dot_product > 1e-9
+
+        face_edges = []
+        for k in range(m):
+            u, v = face[k], face[(k + 1) % m]
+            edge_key = (min(u, v), max(u, v))
+            face_edges.append(edge_key)
+            if is_visible:
+                visible_edge_set.add(edge_key)
+
+        if is_visible:
             visible_faces.append(face)
-            for k in range(m):
-                u, v = face[k], face[(k + 1) % m]
-                visible_edge_set.add((min(u, v), max(u, v)))
+
+        faces_data.append({
+            "index": face_idx,
+            "face": face,
+            "sides": m,
+            "center": fc,
+            "normal": (nx, ny, nz),
+            "dot": dot_product,
+            "is_visible": is_visible,
+            "edges": face_edges,
+        })
 
     visible_edges = []
     hidden_edges = []
@@ -114,4 +137,5 @@ def classify_model_visibility(model, proj_type="isometric", c=30.0):
         "visible_faces": visible_faces,
         "visible_edges": visible_edges,
         "hidden_edges": hidden_edges,
+        "faces_data": faces_data,
     }
